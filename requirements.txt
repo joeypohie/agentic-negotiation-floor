@@ -1,9 +1,0 @@
-numpy
-pandas
-scipy
-requests
-yfinance
-pyyaml
-openai
-pytest
-nbstripout
