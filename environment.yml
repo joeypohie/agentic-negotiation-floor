@@ -1,0 +1,15 @@
+name: cosi
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy=1.26.4      
+  - scipy
+  - requests
+  - pyyaml
+  - pytest
+  - pip
+  - pip:
+      - yfinance
+      - nbstripout
+      - openai
