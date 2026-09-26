@@ -14,8 +14,9 @@ calibration:
   beta_rule: ln(9)/g
   beta: 64.86635
   disclosure:
-    K: 8
-    omega: 0.7
+    K: 10
+    omega: 0.8
+    tau: 0.25
   notional_mm: 10
   computed_on: '2026-09-22'
 model:
