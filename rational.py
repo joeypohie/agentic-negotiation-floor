@@ -8,6 +8,7 @@ Code is for a rational client
 import numpy as np
 from scipy import stats
 from env import play, score
+from generator import price_dp
 
 def price_grid(m, g, lo=6.0, hi=6.0, per_g=40):
     """Candidate prices, m - lo*g to m + hi*g, step g/per_g."""
@@ -88,14 +89,22 @@ def dealer_best_quote(m, c, g, sigma_ln=0.5):
 
 # ---------- Step 5: predictions U* and B* ----------
 
-def rational_bots(q_grid, G_client):
+def rational_bots(q_grid, G_client, round_quote=True):
     """Rational play in env.play's bot interface.
 
-    Dealer quotes p*; the client, holding G_client, lifts iff p <= theta and
-    otherwise counters q*; the dealer takes any counter at or above its cost.
+    Dealer quotes p*, rounded to the nearest 0.001 tick (never below its cost);
+    the client, holding G_client, lifts iff p <= theta and otherwise counters q*;
+    the dealer takes any counter at or above its cost. round_quote=False keeps
+    the unrounded p*, for the scale-invariance gate.
     """
     def quote(dv, g):
-        return dealer_best_quote(dv.m, dv.c, g)
+        p = dealer_best_quote(dv.m, dv.c, g)
+        if not round_quote:
+            return p
+        p = round(p, price_dp)
+        if p < dv.c:                                    # rounding must not cross cost
+            p = round(p + 10 ** -price_dp, price_dp)
+        return p
 
     def respond(cv, g, p):
         V, q_star = value_of_countering(cv.r, q_grid, G_client)
@@ -107,15 +116,15 @@ def rational_bots(q_grid, G_client):
     return quote, respond, decide
 
 
-def play_rational(scn, g, G_client):
+def play_rational(scn, g, G_client, round_quote=True):
     """One rational episode, played against the TRUE r and c, and scored."""
     q = price_grid(scn.m, g)
-    return score(scn, play(scn, g, *rational_bots(q, G_client)))
+    return score(scn, play(scn, g, *rational_bots(q, G_client, round_quote)))
 
 
-def predictions(scn, g, G_band):
+def predictions(scn, g, G_band, round_quote=True):
     """U* (client holds the prior), B* (client holds the band posterior), and VoD_s."""
     q = price_grid(scn.m, g)
-    U = play_rational(scn, g, prior_G(q, scn.m, g))
-    B = play_rational(scn, g, G_band)
+    U = play_rational(scn, g, prior_G(q, scn.m, g), round_quote)
+    B = play_rational(scn, g, G_band, round_quote)
     return U, B, B.client_surplus - U.client_surplus

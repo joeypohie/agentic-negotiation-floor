@@ -8,6 +8,7 @@ dependencies:
   - requests
   - pyyaml
   - pytest
+  - matplotlib
   - pip
   - pip:
       - yfinance

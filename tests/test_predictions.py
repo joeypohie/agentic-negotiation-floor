@@ -57,7 +57,7 @@ def _in_g_units(m, g, E1, E2, z):
     s = g * np.sqrt(D["omega"] ** 2 / D["K"] + D["tau"] ** 2)
     q = price_grid(m, g)
     _, G_band = band_posterior(q, m, g, avg=scn.c + z * s, s=s)
-    U, B, vod = predictions(scn, g, G_band)
+    U, B, vod = predictions(scn, g, G_band, round_quote = False)
     return np.array([(dealer_best_quote(m, scn.c, g) - m) / g,
                      U.client_surplus / g, B.client_surplus / g, vod / g])
 
