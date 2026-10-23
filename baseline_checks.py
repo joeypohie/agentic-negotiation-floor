@@ -2,7 +2,7 @@
 
     python baseline_checks.py logs/main_ornith1.5-35b.jsonl
 
-The log must hold U on seeds 1-50 (2 replicates) and U_noelicit on seeds 1-10.
+The log must hold U and U_noelicit, each on seeds 1-50 with 2 replicates.
 """
 import sys
 
@@ -18,9 +18,10 @@ def main(paths):
     served = sorted({r["run"]["served"] for r in recs})
     n_u = sum(r["key"]["condition"] == "U" for r in recs)
     n_c = sum(r["key"]["condition"] == "U_noelicit" for r in recs)
-    print(f"served {', '.join(served)} | U episodes {n_u} | control episodes {n_c}")
-    if n_u != 100 or n_c != 10:
-        print("  WARNING: expected 100 U episodes (seeds 1-50 x 2) and 10 controls (seeds 1-10)")
+    print(f"served {', '.join(served)} | U episodes {n_u} | U_noelicit episodes {n_c}")
+    if n_u != 100 or n_c != 100:
+        print("  WARNING: expected 100 U and 100 U_noelicit episodes (seeds 1-50 x 2 each)")
+
 
     a = gate_a(recs, g)
     verdict = "NOT ASSESSABLE" if a["passed"] is None else ("PASS" if a["passed"] else "FAIL")
@@ -29,9 +30,10 @@ def main(paths):
     print(f"  {verdict:<14} (a) elicitation not decorative: {shown}")
 
     b = gate_b(recs)
-    print(f"  {'PASS' if b['passed'] else 'FAIL':<14} (b) elicitation doesn't change play: control mean "
-          f"{b['control_mean']:.3f}; main U mean {b['main_mean']:.3f}, 95% CI [{b['ci'][0]:.3f}, {b['ci'][1]:.3f}] "
-          f"over {b['n_scenarios']} scenarios")
+    print(f"  {'PASS' if b['passed'] else 'FAIL':<14} (b) asking doesn't change play: U - U_noelicit "
+        f"{b['diff']:+.3f}, 95% CI [{b['ci'][0]:+.3f}, {b['ci'][1]:+.3f}] over {b['n_scenarios']} scenarios "
+        f"(U {b['main_mean']:.3f}, U_noelicit {b['control_mean']:.3f})")
+
 
     c = gate_c(recs, g, D)
     print(f"  {'PASS' if c['passed'] else 'RAISE REPS':<14} (c) power: expected B-U half-width {c['half_width']:.3f} "

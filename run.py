@@ -27,13 +27,15 @@ from render import (client_brief, belief_points, pre_quote_message, post_quote_m
                     decision_message, noelicit_message)
 
 ROOT = Path(__file__).resolve().parent
-CONDITIONS = ("U", "B", "U_noelicit", "U_probe")
+CONDITIONS = ("U", "B", "U_noelicit", "B_noelicit", "U_probe")   # U_probe: pilot only, never analysed
+BAND_SHOWN = ("B", "B_noelicit")
+NO_ELICIT = ("U_noelicit", "B_noelicit")
 PROVIDER = "SoCLaaS"
 TURN_SEED = {"pre": 0, "post": 10, "decision": 20, "noelicit": 30}   # retries add 0, 1, 2, ...
 
 
 def episode_seed(sd, rep):
-    """Base API seed. Shared by U, B and U_noelicit for the same scenario and replicate
+    """Base API seed. Shared by every condition for the same scenario and replicate
     (common random numbers), different across replicates."""
     return sd * 1000 + rep * 100
 
@@ -78,7 +80,7 @@ def play_episode(llm, scn, band, g, condition, rep):
     dealer_quote, _, dealer_decide = rational_bots(q_grid, prior_G(q_grid, scn.m, g))
     pts = belief_points(scn, g)
     base = episode_seed(scn.seed, rep)
-    msgs = [{"role": "system", "content": client_brief(scn, g, band if condition == "B" else None)}]
+    msgs = [{"role": "system", "content": client_brief(scn, g, band if condition in BAND_SHOWN else None)}]
     turns, seen = {}, {}
 
     def ask(name, text, parse):
@@ -94,7 +96,7 @@ def play_episode(llm, scn, band, g, condition, rep):
 
     def respond(cv, g_, p):
         read = lambda x: parse_decision(x, scn.m, g)
-        if condition == "U_noelicit":
+        if condition == "NO_ELICIT":
             t = ask("noelicit", noelicit_message(p), read)
         else:
             ask("pre", pre_quote_message(scn, g), lambda x: parse_belief(x, pts))   # the quote is not shown here
@@ -120,7 +122,7 @@ def make_record(meta, served, scn, band, condition, rep, msgs, turns, seen, ep, 
         "key": {"seed": scn.seed, "condition": condition, "replicate": rep},
         "run": {**meta, "served": served},
         "scenario": {"m": scn.m, "c": scn.c, "r": scn.r},
-        "band": {"shown": condition == "B", "avg": band.avg, "low": band.low, "high": band.high,
+        "band": {"shown": condition in BAND_SHOWN, "avg": band.avg, "low": band.low, "high": band.high,
                  "s": band.s, "d": band.d, "prints": list(band.prints)},          # d and prints: audit only
         "quote": seen.get("quote"),
         "beliefs": {"pre": belief("pre"), "post": belief("post")},

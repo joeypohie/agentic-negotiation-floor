@@ -89,19 +89,21 @@ def _scenario_means(recs, condition, seeds):
     return out
 
 
-def gate_b(recs, seeds=range(1, 11), n_boot=10_000, seed=0):
-    """Is the control episodes' mean capture inside the 95% bootstrap CI of the main U episodes?"""
+def gate_b(recs, seeds=range(1, 51), n_boot=10_000, seed=0):
+    """Does being asked about beliefs change play? Paired over scenarios: the mean of
+    capture(U) - capture(U_noelicit), replicates averaged within scenario. Passes if the
+    95% bootstrap CI (resampling scenarios) contains 0."""
     main = _scenario_means(recs, "U", seeds)
     ctrl = _scenario_means(recs, "U_noelicit", seeds)
     common = sorted(set(main) & set(ctrl))
-    m = np.array([main[s] for s in common])
+    d = np.array([main[s] - ctrl[s] for s in common])
     rng = np.random.default_rng(seed)
-    boot = m[rng.integers(0, len(m), size=(n_boot, len(m)))].mean(axis=1)
+    boot = d[rng.integers(0, len(d), size=(n_boot, len(d)))].mean(axis=1)
     lo, hi = np.percentile(boot, [2.5, 97.5])
-    ctrl_mean = float(np.mean([ctrl[s] for s in common]))
-    return {"n_scenarios": len(common), "main_mean": float(m.mean()), "ci": (float(lo), float(hi)),
-            "control_mean": ctrl_mean, "passed": bool(lo <= ctrl_mean <= hi)}
-
+    return {"n_scenarios": len(common), "diff": float(d.mean()), "ci": (float(lo), float(hi)),
+            "main_mean": float(np.mean([main[s] for s in common])),
+            "control_mean": float(np.mean([ctrl[s] for s in common])),
+            "passed": bool(lo <= 0 <= hi)}
 
 # ---------- Step 8 gate (c): power check ----------
 
