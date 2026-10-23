@@ -21,6 +21,11 @@ def main(paths):
     print(f"served {', '.join(served)} | U episodes {n_u} | U_noelicit episodes {n_c}")
     if n_u != 100 or n_c != 100:
         print("  WARNING: expected 100 U and 100 U_noelicit episodes (seeds 1-50 x 2 each)")
+    
+    wrong = sum(1 for r in recs if r["key"]["condition"].endswith("_noelicit") and list(r["turns"]) != ["noelicit"])
+    if wrong:
+        sys.exit(f"  ERROR: {wrong} no-elicit episodes were asked belief questions; fix run.py and rerun them")
+
 
 
     a = gate_a(recs, g)
@@ -29,17 +34,16 @@ def main(paths):
         f"rho {a['rho']:+.2f}, one-sided p {a['p']:.3g}, over {a['n']} counters"
     print(f"  {verdict:<14} (a) elicitation not decorative: {shown}")
 
+
     b = gate_b(recs)
     print(f"  {'PASS' if b['passed'] else 'FAIL':<14} (b) asking doesn't change play: U - U_noelicit "
         f"{b['diff']:+.3f}, 95% CI [{b['ci'][0]:+.3f}, {b['ci'][1]:+.3f}] over {b['n_scenarios']} scenarios "
         f"(U {b['main_mean']:.3f}, U_noelicit {b['control_mean']:.3f})")
 
-
     c = gate_c(recs, g, D)
     print(f"  {'PASS' if c['passed'] else 'RAISE REPS':<14} (c) power: expected B-U half-width {c['half_width']:.3f} "
           f"vs predicted effect {c['predicted_effect']:.3f} (replicate SD {c['s_within']:.3f}, "
           f"{c['n_scenarios']} scenarios; optimistic: ignores between-scenario variation)")
-
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

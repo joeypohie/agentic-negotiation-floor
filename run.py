@@ -96,7 +96,7 @@ def play_episode(llm, scn, band, g, condition, rep):
 
     def respond(cv, g_, p):
         read = lambda x: parse_decision(x, scn.m, g)
-        if condition == "NO_ELICIT":
+        if condition in NO_ELICIT:
             t = ask("noelicit", noelicit_message(p), read)
         else:
             ask("pre", pre_quote_message(scn, g), lambda x: parse_belief(x, pts))   # the quote is not shown here
