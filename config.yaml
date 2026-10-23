@@ -20,11 +20,12 @@ calibration:
   notional_mm: 10
   computed_on: '2026-09-22'
 model:
-  name: null
-  version: null
-  provider: null
+  name: ornith1.5:35b
+  version: null              # SoCLaaS tags are not dated snapshots
+  provider: SoCLaaS
+  served_name: ornith1.5:35b
   temperature: 0.5
-  reasoning_mode: null
+  reasoning_mode: "off"      # reasoning_effort="none"
 run:
   main_seeds:
   - 1
