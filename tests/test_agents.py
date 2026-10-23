@@ -126,3 +126,9 @@ def test_counter_reads_price_and_rounds_to_tick():
 def test_parse_decision_rejects_bad_decisions(reply):
     with pytest.raises(ParseError):
         parse_decision(reply, SCN.m, G)
+
+
+def test_counter_is_rounded_down_never_above_what_was_stated():
+    assert parse_decision('{"action": "counter", "price": 101.1609}', SCN.m, G)[1] == 101.160
+    assert parse_decision('{"action": "counter", "price": 100.766}', SCN.m, G)[1] == 100.766   # already on tick
+    assert parse_decision('{"action": "counter", "price": 100.7379}', SCN.m, G)[1] == 100.737

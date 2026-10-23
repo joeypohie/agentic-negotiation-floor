@@ -54,6 +54,13 @@ def _number(v, what):
         raise ParseError(f"{what} is not finite")
     return x
 
+def _down_to_tick(x):
+    """Round a price DOWN to the 0.001 tick. A client willing to pay x is willing to pay any
+    lower price, so rounding down never makes it pay more than it stated (e.g. a counter at a
+    4-decimal limit, 101.1609, becomes 101.160, not 101.161)."""
+    tick = 10 ** price_dp
+    return math.floor(round(x * tick, 6)) / tick      # round(…, 6) absorbs float noise like 100765.99999
+
 
 def parse_belief(text, points):
     """The client's 9 probabilities, in the order of `points` (lowest price first).
@@ -83,7 +90,7 @@ def parse_belief(text, points):
 def parse_decision(text, m, g):
     """(action, price, reason): ("accept", None, reason) or ("counter", q, reason).
 
-    A counter price is rounded to the 3-decimal tick. Counters above the limit or at
+    A counter price is rounded down to the 3-decimal tick. Counters above the limit or at
     or above the quote are allowed here; env.play and score deal with those.
     """
     obj = extract_json(text)
@@ -99,8 +106,7 @@ def parse_decision(text, m, g):
     q = _number(obj["price"], "counter price")
     if abs(q - m) > PRICE_RANGE_G * g:
         raise ParseError(f"counter price {q} is more than {PRICE_RANGE_G}g from the evaluated price")
-    return "counter", round(q, price_dp), reason
-
+    return "counter", _down_to_tick(q), reason
 
 
 # Connection to SoCLaaS 
