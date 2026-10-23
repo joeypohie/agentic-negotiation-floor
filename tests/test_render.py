@@ -53,6 +53,7 @@ def test_parity_every_benchmark_number_is_stated(sd):
             assert fv(q * G) in text
         assert "accepts any counteroffer at or above its own cost" in text
         assert "maximise your expected profit" in text
+        assert "no option to reject the quote outright" in text
     for x in (band.avg, band.low, band.high):           # the band's numbers, in B
         assert fv(x) in b
     assert "Reported purchases" not in u                # and no band paragraph in U
