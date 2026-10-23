@@ -119,7 +119,7 @@ def predicted_vod_share(seeds, g, disclosure):
 
 
 def gate_c(recs, g, disclosure, seeds=range(1, 51), reps=2):
-    """CLAUDE.md: paired SD of B - U ~ sqrt(2) x U's within-scenario replicate SD.
+    """Paired SD of B - U ~ sqrt(2) x U's within-scenario replicate SD.
 
     With replicates averaged within each scenario, the CI half-width for the mean B - U is
     1.96 * sqrt(2) * s_within / sqrt(reps) / sqrt(n_scenarios). This counts replicate noise
