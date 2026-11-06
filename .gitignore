@@ -9,8 +9,7 @@ __pycache__/
 # macOS
 .DS_Store
 
-# Run outputs (episodes are data, not source)
-logs/
+# Run outputs. Episode logs in logs/ are committed (they are the study's data); runs/ is scratch
 runs/
 
 # pytest
