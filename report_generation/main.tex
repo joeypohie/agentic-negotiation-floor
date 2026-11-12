@@ -26,6 +26,7 @@
 \author{Joey Poh}
 \affiliation{%
   \institution{National University of Singapore}
+  \country{Singapore}
 }
 
 \begin{abstract}
@@ -42,9 +43,9 @@ People are beginning to let LLM agents negotiate for them, and the agents on eit
 We make three contributions:
 
 \begin{enumerate}[leftmargin=*, itemsep=0.5em]
-  \item \textbf{A testbed with a known value of disclosure.} A bargaining game calibrated to Treasury price volatility, with a Bayesian client that fixes exactly how much the band is worth to a client that uses it well.
-  \item \textbf{Disclosure did not help the LLM client.} The band did not reliably improve its share of the surplus, and the result held on 20 unseen scenarios.
-  \item \textbf{Without reasoning, the LLM client anchors rather than infers.} By eliciting the LLM's beliefs, we show that its bids land on disclosed numbers, its beliefs move half as far as a Bayesian's, and it over-weights weak evidence while under-weighting strong evidence. Presentation and elicitation both act as anchors, so disclosure alone may not protect a weaker agent. We recognize that deployed agents are likely to reason step by step, so we treat this as evidence of an inference gap in this mode and not a general limitation of LLMs.
+  \item \textbf{A bargaining game with a known value of disclosure.} The game is calibrated to Treasury price volatility, with a Bayesian client that fixes exactly how much the band is worth to a perfectly rational client.
+  \item \textbf{Disclosure did not help the LLM client.} The band did not reliably improve its share of the surplus, suggesting an information floor is insufficient.
+  \item \textbf{Without reasoning, the LLM client anchors rather than infers.} By eliciting the LLM's beliefs, we show that its bids land on disclosed numbers, its beliefs do not update as much as it could, and it over-weights weak evidence while under-weighting strong evidence. Presentation and elicitation both act as anchors, so disclosure alone may not protect a weaker agent. We recognize that deployed agents are likely to reason step by step, so we treat this as evidence of an inference gap in this mode and not a general limitation of LLMs.
 \end{enumerate}
 % ======================================================================
 \section{Background}
@@ -75,26 +76,20 @@ The client has a private limit $r$, the most it will pay, and earns $r$ minus th
 \end{equation}
 
 \paragraph{Calibration.}
-Each scenario draws the dealer's cost $c$ below $m$ and the client's limit $r$ above it, each at a random distance (LogNormal, median $1g$). Both sides know these distributions. The unit $g$, about \$3{,}400 on \$10M, is one tenth of the note's daily price volatility, which puts it within the range of real dealer margins.
+Each scenario draws the dealer's cost $c$ below $m$ and the client's limit $r$ above it, each at a random distance (LogNormal, median $1g$). Both sides know these distributions. The client's briefing states the cost distribution as gaps (median $1g$; 80\% between $0.53g$ and $1.9g$) and, for convenience, as prices: a typical dealer cost of $m - 1g$, and 80\% of costs between $m - 1.9g$ and $m - 0.53g$. The unit $g$, about \$3{,}400 on \$10M, is one tenth of the note's daily price volatility, which puts it within the range of real dealer margins.
 
 \paragraph{Disclosure.}
-The band is built from other dealers' purchases of similar notes, which are reported to the regulator but not published. Each trade is recorded as a spread to that day's evaluated price, so moves in the market cancel out, and the average spread is applied to today's evaluated price to give a typical dealer cost, \textit{avg}. The band is noisy for two reasons. First, individual trades scatter: each depends on that dealer's position and that client's size, so a single trade misses the typical cost by about $0.8g$ (one standard deviation). Averaging ten trades shrinks this error to about $0.25g$. Second, this dealer is not the typical dealer: its own book puts its cost about $0.25g$ above or below the typical level, and no number of other dealers' trades can reveal that difference. Together, the two give the band an error of $s = 0.356g$, against $0.604g$ for a client relying only on the general spread of dealers' costs. The client is told \textit{avg} and the range \textit{avg} $\pm\, s$, which contains this dealer's cost 68\% of the time. The noise matters because it sets how far a client should trust the band: a Bayesian client moves its estimate of the dealer's cost most of the way towards \textit{avg}, but not all the way, and still bids with the remaining uncertainty in mind. A client that treats \textit{avg} as the dealer's exact cost will often bid below it and be rejected.
+The band is built from other dealers' purchases of similar notes, which are reported to the regulator but not published. Each trade is recorded as a spread to that day's evaluated price, so moves in the market cancel out, and the average spread, applied to today's evaluated price, gives the band's estimate of a typical dealer's cost. We call this the band's centre, \textit{avg}: where the band says this dealer's cost most likely sits. The band is noisy for two reasons. First, individual trades scatter: each depends on that dealer's position and that client's size, so a single trade misses the market's typical cost by about $0.8g$ (one standard deviation). Averaging ten trades shrinks this error to about $0.25g$. Second, this dealer is not the typical dealer: its own book puts its cost about $0.25g$ above or below the typical level, and no number of other dealers' trades can reveal that difference. Together, the two give the band an error of $s = 0.356g$, against $0.604g$ for a client relying only on the general spread of dealers' costs. The client is told the band's centre and the range \textit{avg} $\pm\, s$, which contains this dealer's cost 68\% of the time. The noise matters because it sets how far a client should trust the band: a Bayesian client moves its estimate of the dealer's cost most of the way towards the band's centre, but not all the way, and still bids with the remaining uncertainty in mind. A client that treats the band's centre as the dealer's exact cost will often bid below it and be rejected. We see this later in the experiment. Appendix~\ref{app:band} gives the band's exact wording.
 
-When the band is disclosed, the client reads:
-
-\begin{quote}
-``Reported purchases by other dealers of similar off-the-run notes yesterday (10 trades) averaged $X$ below their evaluated prices. Applied to today's evaluated price, that implies a typical dealer cost of \textit{avg}. Individual dealers' costs vary around the typical level, so this dealer's own cost is within [\textit{low}, \textit{high}] about two times in three.''
-\end{quote}
-
-
-\paragraph{Rational Client.}
-As a benchmark, we compute the play of a Bayesian client. Suppose the client holds a belief $G(q)$, the probability that the dealer's cost is at or below $q$. Then its best counter $q^*$ is the counter that maximises $(r - q)\,G(q)$, and the highest quote it should accept is $\theta = r - \max_q\,(r - q)\,G(q)$. It accepts the quote $p$ if $p \le \theta$, and otherwise counters at $q^*$: a lower counter means a better price but a higher chance of rejection. Without the band, $G$ is the prior. With the band, $G$ is the Bayesian posterior.
+\paragraph{Bayesian Client.}
+As a benchmark, we program a Bayesian client, the rational benchmark, that knows exactly what the LLM is told. Its prior over the dealer's cost is the briefing's distribution, $c = m - g \cdot \mathrm{LogNormal}(0, 0.5)$. The client updates this once after the band is presented. By Bayes' rule, it weighs each possible cost by how common that cost is across dealers (the prior) and by how well it fits the band: costs near the band's centre fit well, and costs several times the band's error $s$ away fit badly.
+ It does not update on the dealer's quote. Its belief gives $G(q)$, the probability that the cost is at or below $q$, which is also the probability that a counter at $q$ is accepted. Its best counter $q^*$ maximises expected profit $(r - q)\,G(q)$: a lower counter means a better price but a higher chance of rejection. It accepts the quote $p$ if $p \le \theta = r - \max_q\,(r - q)\,G(q)$, where accepting is worth at least as much as its best counter, and otherwise counters at $q^*$. Appendix~\ref{app:bayes} gives the equations and a worked example.
 
 \paragraph{The Dealer.}
-The same fixed algorithm in every condition. It chooses the quote that maximises its expected profit over the prior on the client's limit, assuming an uninformed client. It rounds the quote to 0.001 points, and accepts any counter at or above its cost. It quotes $m - 0.425g$ in 88\% of scenarios, so the quote explains 18\% of the variation in the cost, considerably little.
+The same fixed algorithm that chooses the quote that maximises its expected profit over the prior on the client's limit, assuming an uninformed client. It accepts any counter at or above its cost. It quotes $m - 0.425g$ in 88\% of scenarios, so the quote explains 18\% of the variation in the cost, considerably little.
 
 \paragraph{Value of disclosure.}
-We play the rational client against this dealer at the true cost and limit. On our 50 test scenarios the band raises capture from 62.1\% to 73.2\%, a gain of 11.1 percentage points (11.4 points over 1,000 scenarios). This is the most a client that uses the band perfectly can gain.
+We play the Bayesian client against this dealer at the true cost and limit. On our 50 test scenarios the band raises capture from 62.1\% to 73.2\%, a gain of 11.1 percentage points (11.4 points over 1,000 scenarios). This is the most a client that uses the band perfectly can gain.
 
 
 % ======================================================================
@@ -103,34 +98,34 @@ We play the rational client against this dealer at the true cost and limit. On o
 \subsection{Design}
 
 \paragraph{Choosing the client.}
-The client model was selected with a short pilot on separate scenarios. It checked basic competence, for example, that at least 90\% of the model's counteroffers were below the quote and within its own limit. Our first choice, Qwen3.6-35B, failed this check (67\%). Ornith-1.5-35B passed (92\%) and was used throughout. It runs at temperature 0.5, so that repeated runs of a scenario can differ, and with reasoning off, so that we measure how it bargains without reasoning mode.
+The client model was selected with a short pilot on separate scenarios. It checked basic competence, for example, that at least 90\% of the model's counteroffers were below the quote and within its own limit. Our first choice, Qwen3.6-35B, failed this check (67\%). Ornith-1.5-35B passed (92\%) and was used throughout (Appendix~\ref{app:pilot}). It runs at temperature 0.5, so that repeated runs of a scenario can differ, and with reasoning off, so that we measure how it bargains without reasoning mode.
 
 \paragraph{The Experiment.}
-We varied two things: whether the client sees the band, and whether we elicit its beliefs. Belief elicitation asks for the client's probability that the dealer's cost lies below each of nine prices, once before it sees the quote and once after, so that we can compare its beliefs with a Bayesian client's. From the nine answers we read off the client's best guess of the cost, the median of its stated belief. Each condition was played on the same 50 scenarios, twice each. The main test (the band raises the client's capture without belief elicitation) and its decision rule were pre-registered before any negotiation with the band. All confidence intervals are 95\% bootstrap intervals over scenarios (10,000 resamples).
+We varied two things: whether the client sees the band, and whether we elicit its beliefs. Belief elicitation asks for the client's probability that the dealer's cost lies below each of nine prices, once before it sees the quote and once after, so that we can compare its beliefs with a Bayesian client's. From the nine answers we read off the client's best guess of the cost, the median of its stated belief. Each condition was played on the same 50 scenarios, twice each. The main test (the band raises the client's capture without belief elicitation) and its decision rule were pre-registered before any negotiation with the band. All confidence intervals are 95\% bootstrap intervals over scenarios (10,000 resamples). Appendices~\ref{app:bayes}--\ref{app:results} give the Bayesian benchmark, the full prompt and the band's wording, how the model was chosen, and every result.
 
 
 % ----------------------------------------------------------------------
 \subsection{LLM Agent Bargaining Results without Disclosure}
 
-Without the band, the client almost made a counteroffer in 98--99\% of negotiations, while a rational client usually accepted the quote. Its counteroffers were also low: on average $1.3g$ below the evaluated price. About half were rejected, so the client kept only 36--41\% of the surplus.
+Without the band, the client almost made a counteroffer in 98--99\% of negotiations, while a Bayesian client usually accepted the quote. Its counteroffers were also low: on average $1.3g$ below the evaluated price. About half were rejected, so the client kept only 36--41\% of the surplus.
 
 The client's counteroffers sit on numbers it has been given. Without belief elicitation, 77 of its 98 counteroffers land on one of two prices from the briefing: the typical dealer cost, $1g$ below the evaluated price (about \$3,400 on the \$10M trade; 46 counteroffers), or the low end of the briefing's 80\% range of costs, $1.9g$ below (31 counteroffers;
 Figure~\ref{fig:counters}a).
 
 Belief elicitation itself also supplied prices to bid. It asks for the probability that the dealer's cost is below each of nine listed prices, and with elicitation, half of the client's counteroffers sat exactly on one of them ($1.25g$, $1.5g$ or $2g$ below the evaluated price). Without elicitation, the client almost never bid these prices.
 
-Its stated beliefs do not drive its bids. Its beliefs imply a counteroffer about $0.47g$ below the evaluated price, but they do not predict its actual counteroffers ($\rho = 0.08$). Its counteroffers also do not rise with its own limit, although a rational client with a higher limit bids higher to make a rejection less likely.
+Its stated beliefs do not drive its bids. Its beliefs imply a counteroffer about $0.47g$ below the evaluated price, but they do not predict its actual counteroffers ($\rho = 0.08$). Its counteroffers also do not rise with its own limit, although a Bayesian client with a higher limit bids higher to make a rejection less likely.
 
 % ----------------------------------------------------------------------
 \subsection{Evaluating if an Information Floor Helps}
 
-The band did not improve the LLM client's outcome. Without belief elicitation, the client kept 41\% of the surplus without the band and 33\% with it (Figure~\ref{fig:capture}). The difference, $-7.3$ points (95\% CI $[-19.0, 3.8]$), is not significant, so our main hypothesis, that the LLM client uses the band to improve its outcome, is not supported. A rational client facing the same dealer raises its share from 62\% to 73\%. An exploratory paired test (per scenario, the rational client's gain from the band minus the LLM's) shows the LLM fell 18.4 points short (95\% CI $[4.8, 32.0]$, $p \approx 0.008$). With belief elicitation, the band again made no difference ($-0.2$ points, 95\% CI $[-10.2, 9.7]$), and the shortfall, 11.3 points ($[-2.7, 25.2]$, $p \approx 0.12$), is not significant.
+The band did not improve the LLM client's outcome. Without belief elicitation, the client kept 41\% of the surplus without the band and 33\% with it (Figure~\ref{fig:capture}). The difference, $-7.3$ points (95\% CI $[-19.0, 3.8]$), is not significant, so our main hypothesis, that the LLM client uses the band to improve its outcome, is not supported. A Bayesian client facing the same dealer raises its share from 62\% to 73\%. An exploratory paired test (per scenario, the Bayesian client's gain from the band minus the LLM's) shows the LLM fell 18.4 points short (95\% CI $[4.8, 32.0]$, $p \approx 0.008$). With belief elicitation, the band again made no difference ($-0.2$ points, 95\% CI $[-10.2, 9.7]$), and the shortfall, 11.3 points ($[-2.7, 25.2]$, $p \approx 0.12$), is not significant.
 
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=0.85\columnwidth]{figures/fig2_results.pdf}
-  \caption{Client capture without and with the band. Rational client: open markers; LLM client, without belief elicitation: filled markers. The band raises the rational client's capture by 11\% of the surplus; the LLM's change is not significant.}
+  \caption{Client capture without and with the band. Bayesian client: open markers; LLM client, without belief elicitation: filled markers. The band raises the Bayesian client's capture by 11\% of the surplus; the LLM's change is not significant.}
   \label{fig:capture}
 \end{figure}
 
@@ -151,7 +146,7 @@ An exploratory look in Figure~\ref{fig:counters} shows this. Without belief elic
 
 
 \subsection{What the LLM Agent Believed}
-Belief elicitation separates what the band did to the client's beliefs from what it did to its bids. A Bayesian adjusts its estimate in proportion to how informative the evidence is. The band is informative: it moves a Bayesian's estimate of the dealer's cost by $0.46g$, but moved the LLM's by only $0.23g$ (Figure~\ref{fig:beliefs}). The quote is nearly uninformative, because the dealer quotes almost the same price whatever its cost: it moves a Bayesian's estimate by $0.08g$, but moved the LLM's by $0.57g$. The LLM over-reacted to weak evidence and under-reacted to strong evidence, and the band left its beliefs no more accurate. Its bids, however, moved $0.25g$ closer to the rational client's (95\% CI [$0.15$, $0.33$]). Better bids without better beliefs suggest the client copied the band's numbers into its bids rather than reasoning with them.
+Belief elicitation separates what the band did to the client's beliefs from what it did to its bids. A Bayesian adjusts its estimate in proportion to how informative the evidence is. The band is informative: it moves a Bayesian's estimate of the dealer's cost by $0.46g$, but moved the LLM's by only $0.23g$ (Figure~\ref{fig:beliefs}). The quote is nearly uninformative, because the dealer quotes almost the same price whatever its cost: it moves a Bayesian's estimate by $0.08g$, but moved the LLM's by $0.57g$. The LLM over-reacted to weak evidence and under-reacted to strong evidence, and the band left its beliefs no more accurate. Its bids, however, moved $0.25g$ closer to the Bayesian client's (95\% CI [$0.15$, $0.33$]). Better bids without better beliefs suggest the client copied the band's numbers into its bids rather than reasoning with them.
 
 
 \begin{figure}[t]
@@ -164,7 +159,7 @@ Belief elicitation separates what the band did to the client's beliefs from what
 % ----------------------------------------------------------------------
 \subsection{Confirmation from Unseen Scenarios}
 
-We repeated the experiment once on 20 scenarios never used during development, with the analysis code unchanged. The main findings held (Figure~\ref{fig:heldout}). The band again had no reliable effect on the client's share of the surplus (panel a): its confidence interval spans zero in both sets. They cannot test the shortfall, as the rational gain there is only 3.3 points. The client again moved its bids towards the band's centre (panel b), consistent with anchoring on the numbers it is given. And its beliefs again lagged the Bayesian client's (panel c): the band moved its best guess half as far as a Bayesian's in the main experiment, and not at all on the new scenarios.
+We repeated the experiment once on 20 scenarios never used during development, with the analysis code unchanged. The main findings held (Figure~\ref{fig:heldout}). The band again had no reliable effect on the client's share of the surplus (panel a): its confidence interval spans zero in both sets. They cannot test the shortfall, as the Bayesian client's gain there is only 3.3 points. The client again moved its bids towards the band's centre (panel b), consistent with anchoring on the numbers it is given. And its beliefs again lagged the Bayesian client's (panel c): the band moved its best guess half as far as a Bayesian's in the main experiment, and not at all on the new scenarios.
 
 \begin{figure}[t]
   \centering
@@ -177,7 +172,7 @@ We repeated the experiment once on 20 scenarios never used during development, w
 \section{Limitations and Future Work}
 
 \paragraph{Limitations.}
-The game isolates the effect of information at the cost of realism. There is a single dealer, so the client has no competing quotes, its main protection in real markets; it makes one counteroffer, where real negotiations can go back and forth; and walking away is worth nothing, where a real client could trade elsewhere. The dealer is a fixed algorithm, not an agent: it neither adapts to nor exploits the client, and its quote reveals little about its cost, so we can detect a client over-reading the quote but not reading it skillfully. Costs, limits and reported trades are synthetic; only the price scale is calibrated to market data. Finally, we test one model, with reasoning off, under one prompt, so our results describe this model in this mode. Reasoning mode is the feature most likely to supply the missing inference, and a deployed agent would more plausibly use it, so our results may overstate the gap such an agent faces.
+The game isolates the effect of information at the cost of realism. There is a single dealer, so the client has no competing quotes, its main protection in real markets; it makes one counteroffer, where real negotiations can go back and forth; and walking away is worth nothing, where a real client could trade elsewhere. Costs, limits and reported trades are synthetic; only the price scale is calibrated to market data. Finally, we test one model, with reasoning off, under one prompt, so our results describe this model in this mode. Reasoning mode is the feature most likely to supply the missing inference, and a deployed agent would more plausibly use it, so our results may overstate the gap such an agent faces.
 
 
 \paragraph{Future work.}
@@ -199,4 +194,171 @@ Two lessons follow for protocol design. How information is presented matters as 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{refs}
 
+% ======================================================================
+\appendix
+
+\section{The Bayesian Client}
+\label{app:bayes}
+
+\paragraph{The Priors.} Before seeing any band, the Bayesian client believes exactly what the briefing says: the dealer's cost sits below the evaluated price by a random distance, most often about $1g$, with 80\% of dealers between $0.53g$ and $1.9g$ below, and a long tail of larger gaps. The client knows nothing the LLM is not told.
+
+\paragraph{How it updates.} The client considers every possible cost and gives each a weight. It starts from the prior: how common that cost is across dealers. It then asks how well each cost fits the band. If the true cost were close to the band's centre, a band like the one reported would be unsurprising, so that cost gains weight; if it were far away, the band would have had to miss by several times its typical error, so that cost loses weight. By Bayes rule, the beliefs are updated by multiplying the two and rescaling. The belief ends up between the prior and the band's centre, closer to whichever is more precise. Here, the band is more precise, so the belief moves most of the way towards the band's centre, but not all the way. As a check, across 1,000 scenarios the updated beliefs are well calibrated: the true cost falls in the bottom 10\% of the belief about 10\% of the time, and so on.
+
+
+\paragraph{How it decides.} From its belief, the client knows the chance that any counteroffer will be accepted: it is the chance that the dealer's cost is at or below that price. For each possible counter, it multiplies the profit it would make (its limit minus the counter) by that chance, and picks the counter with the highest result. A lower counter makes more profit if accepted but is accepted less often; the best counter balances the two. It then compares the dealer's quote with this best counter: it accepts the quote if the sure profit from accepting is at least the expected profit from countering, and otherwise makes the counter. The highest quote it will accept is its threshold. It does not try to read the dealer's cost from the quote, which would add little here because this dealer quotes almost the same price whatever its cost. The client faces the same fixed dealer and the same quote as the LLM.
+
+\paragraph{Worked example.} In scenario~1 (Appendix~\ref{app:prompt}), the band's centre is $m - 1.53g$, the true cost $m - 1.22g$, the client's limit $m + 0.82g$ and the quote $m - 0.41g$ (100.782). Table~\ref{tab:bayes} shows the update. The band moves the client's best guess about two-thirds of the way towards the band's centre and nearly halves its uncertainty. The quote, which it accepts without the band, is now above its threshold, so it counters, well above the band's centre, because the range allows the cost to be higher. The dealer accepts, and the client's share rises from 60.6\% to 84.5\%. In the same scenario, the LLM countered at 100.745, below the dealer's cost, and was rejected.
+
+\begin{table}[ht]
+  \small
+  \caption{The Bayesian client in scenario~1, without and with the band. Prices in $g$ relative to $m$; best guess is the median of its belief.}
+  \label{tab:bayes}
+  \begin{tabular}{@{}lcc@{}}
+    \toprule
+    & Without band & With band \\
+    \midrule
+    Best guess of the cost & $-1.01g$ & $-1.34g$ \\
+    Uncertainty (standard deviation) & $0.60g$ & $0.33g$ \\
+    Highest quote it accepts & $-0.40g$ (100.7823) & $-0.76g$ (100.7703) \\
+    Decision on the quote (100.782) & accept & counter \\
+    Counter $q^*$ (its chance of acceptance) & -- & $-0.90g$ (0.92) \\
+    Outcome & trade at 100.782 & trade at 100.7655 \\
+    Client's share of the surplus & 60.6\% & 84.5\% \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+% ----------------------------------------------------------------------
+\section{Client Prompt}
+\label{app:prompt}
+Each negotiation gives the client a system prompt (its briefing), then asks three questions with belief elicitation, or one without. The example below is scenario~1 with the band ($m = 100.796$, $c = 100.7548$, $r = 100.8238$; $1g = 0.0339$ points). The band paragraph, in italics, is the only text that differs between conditions with and without the band; an automated test checks this for every scenario. Quotable prices have three decimals and private values four, as drawn.
+
+\paragraph{System prompt.}
+\begin{quote}\small
+You are a portfolio manager at a fund. You need to buy \$10 million face value of an off-the-run 10-year US Treasury note, and you have asked a single dealer for a price.
+
+The evaluated price for this note today is 100.796. It is an indicative price from a pricing vendor; nobody can trade at it.
+
+Your limit is 100.8238: the most you are willing to pay. The dealer does not know your limit.
+
+The dealer has a private cost: the price at which it can source the note. You do not know it. Across dealers, the cost sits below the evaluated price by an amount that follows a log-normal distribution: the median gap is 0.0339 points, and 80\% of dealers' gaps lie between 0.0178 and 0.0643 points. In prices, a typical dealer's cost is about 100.7621, and 80\% of dealers' costs lie between 100.7317 and 100.7782.
+
+\textit{Reported purchases by other dealers of similar off-the-run notes yesterday (10 trades) averaged 0.0517 below their evaluated prices. Applied to today's evaluated price, that implies a typical dealer cost of 100.7443. Individual dealers' costs vary around the typical level, so this dealer's own cost is within [100.7323, 100.7564] about two times in three.}
+
+How the negotiation works:
+1.~The dealer quotes a price.
+2.~You either accept the quote, and the trade is done at that price, or make one counteroffer at a lower price. There is no option to reject the quote outright: if you do not want to trade at the quote, make a counteroffer.
+3.~If you counter, the dealer accepts any counteroffer at or above its own cost and rejects any below it. Its decision is final: if it rejects, there is no trade.
+Quotes are firm: once you accept, the dealer cannot withdraw. A counteroffer at or above the quote counts as accepting the quote. Prices are in points per 100 face value, to 3 decimals; on \$10 million, 0.001 points is \$100.
+
+Your profit is your limit minus the price you pay, or zero if there is no trade. Your goal is to maximise your expected profit.
+\end{quote}
+
+\paragraph{The band.}
+\label{app:band}
+With the band, the briefing contains one extra paragraph, shown in italics above. In every scenario it reads as follows, with that scenario's numbers filled in:
+\begin{quote}\small
+``Reported purchases by other dealers of similar off-the-run notes yesterday (10 trades) averaged [$m - \textit{avg}$] below their evaluated prices. Applied to today's evaluated price, that implies a typical dealer cost of [\textit{avg}]. Individual dealers' costs vary around the typical level, so this dealer's own cost is within [\textit{avg}~$-~s$, \textit{avg}~$+~s$] about two times in three.''
+\end{quote}
+Without the band, this paragraph is left out and nothing else in the prompt changes.
+
+\paragraph{Questions with belief elicitation.} Before the quote:
+\begin{quote}\small
+The dealer has not quoted yet. For each price below, give your probability (a number from 0 to 1) that the dealer's cost is below that price. Reply with JSON only, using exactly these keys: \texttt{\{"100.6944": <probability>, \ldots, "100.7875": <probability>\}}
+\end{quote}
+The nine prices are $m - g \times \{3, 2.5, 2, 1.5, 1.25, 1, 0.75, 0.5, 0.25\}$. After the quote, the same question follows ``The dealer quotes 100.782.'' The client then decides:
+\begin{quote}\small
+Do you accept the dealer's quote of 100.782, or make a counteroffer? Reply with JSON only, in one of these two forms:
+\texttt{\{"action": "accept", "reason": "<one or two sentences>"\}}
+\texttt{\{"action": "counter", "price": <your counteroffer, to 3 decimals>, "reason": "<one or two sentences>"\}}
+\end{quote}
+
+\paragraph{Question without belief elicitation.} A single turn, ``The dealer quotes 100.782.'' followed by the decision question without the \texttt{reason} field.
+
+\paragraph{An example reply.} With elicitation, the client in this scenario countered at 100.7452 (rounded down to 100.745), giving as its reason: ``My counter of 100.7452 targets roughly the median dealer cost (a 0.0517 discount to the evaluated price, consistent with yesterday's trades).'' The counter is exactly one of the nine prices in the belief question ($m - 1.5g$), next to the band's centre (100.7443). The dealer's cost was 100.7548, so the counter was rejected and the client earned nothing.
+
+% ----------------------------------------------------------------------
+\section{Choosing the Client Model}
+\label{app:pilot}
+Before the main experiment, four open models played the same 20 practice scenarios, which are excluded from all analysis, in two versions: the normal game, and a version in which the client's limit is set below the dealer's quote, so that accepting loses money. The checks and the selection rule were committed to git before any model ran. A model had to pass all five checks; among those that passed, the rule chose the lowest rate of unreadable replies, then the fastest. The rule used no measure of bargaining success. Our first choice, Qwen3.6-35B, failed check~2: some of its counteroffers sat on the briefing's typical cost even when that cost was above its limit. The Qwen3.6-27B tag was served as Qwen3.8-27B and is labelled as served; a third of its replies were unreadable because it wrote out its working before answering. Gemma4-26B and Ornith-1.5-35B both passed with no unreadable replies, so speed decided (median 3.0 against 10.7 seconds per negotiation), and Ornith-1.5-35B was used throughout. Gemma4-26B scored higher on checks 2 and 4, but the gate was pass/fail and the tie-break was fixed in advance.
+
+\begin{table}[ht]
+  \small
+  \caption{Pilot results. Pass marks: (1)~under 2\% of replies unreadable; (2)~at least 90\% of counteroffers below the quote and within the limit; (3)~at most 2 of 20 losing quotes accepted; (4)~positive rank correlation between the client's limit and its counteroffer; (5)~at least 90\% of belief answers rising with price.}
+  \label{tab:pilot}
+  \begin{tabular}{@{}lcccccc@{}}
+    \toprule
+    Model & (1) & (2) & (3) & (4) & (5) & Result \\
+    \midrule
+    Qwen3.6-35B    & 0\%  & 67\%  & 0 & $+0.63$ & 100\% & fail \\
+    Qwen3.8-27B    & 33\% & 57\%  & 0 & $+0.58$ & 100\% & fail \\
+    Gemma4-26B     & 0\%  & 100\% & 0 & $+0.99$ & 100\% & pass \\
+    Ornith-1.5-35B & 0\%  & 92\%  & 0 & $+0.86$ & 99\%  & \textbf{chosen} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+
+
+\begin{table*}[t]
+  \small
+  \caption{All comparisons, paired over scenarios, with 95\% bootstrap CIs (replicates averaged within scenario; 10,000 resamples). Capture differences are in percentage points; distances are in $g$, and a negative change means closer. The first row is the pre-registered main test; the last two rows were added after the results and are exploratory.}
+  \label{tab:tests}
+  \begin{tabular}{@{}llcc@{}}
+    \toprule
+    Comparison & Measure & Main & Held-out \\
+    \midrule
+    Band effect, not elicited (main test) & capture & $-7.3$ $[-19.0, 3.8]$ & $+7.3$ $[-6.3, 22.2]$ \\
+    Bayesian client's gain from the band & capture & $+11.1$ & $+3.3$ \\
+    Band effect, elicited & capture & $-0.2$ $[-10.2, 9.7]$ & $+4.5$ $[-16.4, 25.4]$ \\
+    Interaction (elicited minus not elicited) & capture & $+7.1$ $[-6.2, 20.6]$ & $-2.9$ $[-29.7, 25.9]$ \\
+    Effect of asking about beliefs, no band & capture & $-5.0$ $[-16.8, 6.6]$ & $-12.8$ $[-29.7, 1.5]$ \\
+    Band effect on no-trade rate, not elicited / elicited & McNemar $p$ & 0.20 / 0.82 & 1.00 / 1.00 \\
+    Bids towards the band's centre, not elicited & $|$counter $-$ \textit{avg}$|$ & $-0.16$ $[-0.24, -0.08]$ & $-0.30$ $[-0.48, -0.13]$ \\
+    Bids towards the band's centre, elicited & $|$counter $-$ \textit{avg}$|$ & $-0.26$ $[-0.33, -0.19]$ & $-0.16$ $[-0.31, 0.01]$ \\
+    Best guess towards the band's centre & $|$median $-$ \textit{avg}$|$ & $-0.23$ $[-0.34, -0.14]$ & $-0.01$ $[-0.19, 0.17]$ \\
+    Belief error, band minus no band & mean squared error & $+0.012$ $[-0.004, 0.030]$ & $+0.055$ $[0.026, 0.090]$ \\
+    Bids towards the Bayesian client's & $|$counter $-$ $q^*|$ & $-0.25$ $[-0.33, -0.15]$ & $-0.45$ $[-0.62, -0.28]$ \\
+    \midrule
+    Shortfall against the Bayesian, not elicited & capture & $18.4$ $[4.8, 32.0]$ & -- \\
+    Shortfall against the Bayesian, elicited & capture & $11.3$ $[-2.7, 25.2]$ & -- \\
+    \bottomrule
+  \end{tabular}
+\end{table*}
+
+% ----------------------------------------------------------------------
+\section{All Results}
+\label{app:results}
+Table~\ref{tab:tests} lists every pre-registered comparison and Table~\ref{tab:arms} describes each condition, on the main and held-out scenarios, as produced by the analysis code fixed before any band data was collected. No reply in the main or held-out experiments was unreadable, and no player broke the game's rules.
+
+\begin{table}[H]
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  \caption{Outcomes by condition. Capture: client's share of the surplus (zero if no trade). Counters: stated counteroffers, with the number accepted in brackets. Mean bid: average counteroffer, in $g$ below the evaluated price.}
+  \label{tab:arms}
+  \begin{tabular}{@{}lcccc@{}}
+    \toprule
+    Condition & Capture & No trade & Counters & Mean bid \\
+    \midrule
+    \multicolumn{5}{@{}l}{\textit{Main: 50 scenarios, two runs each}} \\
+    No band, elicited      & 35.6\% & 53\% & 100 (46) & 1.34$g$ \\
+    Band, elicited         & 35.3\% & 55\% & 100 (44) & 1.27$g$ \\
+    No band, not elicited  & 40.5\% & 50\% & 98 (45)  & 1.30$g$ \\
+    Band, not elicited     & 33.2\% & 58\% & 99 (41)  & 1.34$g$ \\
+    \midrule
+    \multicolumn{5}{@{}l}{\textit{Held-out: 20 scenarios, one run each}} \\
+    No band, elicited      & 27.8\% & 70\% & 20 (6)   & 1.56$g$ \\
+    Band, elicited         & 32.3\% & 65\% & 20 (7)   & 1.32$g$ \\
+    No band, not elicited  & 40.6\% & 50\% & 20 (10)  & 1.25$g$ \\
+    Band, not elicited     & 47.9\% & 45\% & 19 (10)  & 1.21$g$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+
+
+
+
+
+% --------------------------------------------------------------------
 \end{document}

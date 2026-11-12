@@ -56,11 +56,14 @@
 % ======================================================================
 \begin{frame}{The game}
   \centering
-  \includegraphics[width=\textwidth]{figures/fig1_setup.pdf}
+  \vspace{-0.6em}
+  \includegraphics[height=3.0cm]{figures/fig1_setup.pdf}\\[0.2em]
+  \includegraphics[height=3.0cm]{figures/fig_priors.pdf}
 
-  \vspace{0.5em}
-  \raggedright\small
+  \vspace{0.2em}
+  \raggedright\footnotesize
   Prices are measured in $g$, one tenth of the note's daily price volatility (about \$3,400 on \$10mm).
+  The client's \alert{briefing} states the cost distribution as gaps and, for convenience, as prices: a typical dealer cost of $m - 1g$; 80\% of costs between $m - 1.9g$ and $m - 0.53g$.
   Outcome: the client's \alert{share of the surplus}, $(r - \text{price})/(r - c)$, or 0 if no trade.
 \end{frame}
 
@@ -90,9 +93,9 @@
         \bottomrule
       \end{tabular}
       \begin{itemize}
-        \item Elicitation: P(cost below each of nine prices), before and after the quote.
+        \item Elicitation, before and after the quote: {\footnotesize ``For each price below, give your probability \ldots\ that the dealer's cost is below that price.''} Nine fixed prices, $0.25g$ to $3g$ below $m$.
         \item Client: Ornith-1.5-35B, temperature 0.5, reasoning off; chosen by a pilot fixed in advance.
-        \item 50 scenarios $\times$ 2 runs; main test \alert{pre-registered}; 20 held-out scenarios.
+        \item 50 scenarios $\times$ 2 runs; 20 held-out scenarios.
       \end{itemize}
     \end{column}
   \end{columns}
@@ -124,10 +127,10 @@
       \includegraphics[width=\textwidth]{figures/fig3_counters.pdf}
     \end{column}
     \begin{column}{0.48\textwidth}
-      \begin{itemize}\small
-        \item Without the band: 77 of 98 bids sit on two prices from the briefing.
-        \item With the band, bids move towards its centre ($0.16g$, pre-registered).
-        \item 26\% sit on the band's \alert{lowest price}; the cost is below it only $\sim$16\% of the time, so \alert{77\% were rejected}.
+      \begin{itemize}\footnotesize
+        \item Every briefing says: {\scriptsize ``the median gap is $1g$, and 80\% of dealers' gaps lie between $0.53g$ and $1.9g$. In prices, a typical dealer's cost is about \alert{[$m - 1g$]}, and 80\% of dealers' costs lie between \alert{[$m - 1.9g$]} and [$m - 0.53g$].''}
+        \item Without the band: 77 of 98 bids sit on the two highlighted prices.
+        \item The client reacted to the band: bids moved $0.16g$ closer to its typical cost, but 26\% sat on the band's \alert{lowest price}, where the cost is below only $\sim$16\% of the time, so \alert{77\% were rejected}.
         \item Belief elicitation's own prices became anchors too.
       \end{itemize}
     \end{column}
